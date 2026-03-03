@@ -144,6 +144,21 @@ def create_source_path_list():
     print(f" ... found {len(list_files)} source files.")
     return list_files
 
+def create_results_path_list(study_folder, exhaustive=False):
+    results_dir = os.path.join(study_folder, "results")
+    list_files = []
+    if exhaustive:
+        for file_path in Path(results_dir).rglob('*'):
+            if os.path.isfile(file_path):
+                list_files.append(file_path)
+    else:
+        for file_path in Path(results_dir).rglob('*'):
+            if os.path.isfile(file_path):
+                if file_path.name == "standard_eval.csv" or file_path.name == "00_config.json":
+                    list_files.append(file_path)
+    print(f" ... found {len(list_files)} result files.")
+    return list_files
+
 def add_files_to_zip_preserve_structure(file_paths, zip_output_path, base_folder=None):
     """Preserve relative folder structure in zip"""
     with zipfile.ZipFile(zip_output_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
@@ -155,7 +170,13 @@ def add_files_to_zip_preserve_structure(file_paths, zip_output_path, base_folder
                     arcname = file_path
                 zipf.write(file_path, arcname=arcname)
 
-def zip_study(study_folder):
+def zip_study(study_folder, zip_results_mode="None"):
+    """ 
+    Zip a given study folder including all data files that are loaded in the configs, all src files and all study files.
+    Results files are not included by default, but can be added with zip_results_mode = "standard" (only standard_eval.csv and 00_config.json) or "exhaustive" (all files in results folder).
+    :param study_folder: path to the study folder you want to zip (e.g. FleetPy\studies\my_study)
+    :param zip_results_mode: "None" (default, no results files), "standard" (only standard_eval.csv and 00_config.json) or "exhaustive" (all files in results folder)
+    """
     study_name = os.path.basename(study_folder)
     base_folder = os.path.dirname(os.path.abspath(__file__))
     zip_name = f"archive_fleetpy_study_{study_name}.zip"
@@ -168,6 +189,14 @@ def zip_study(study_folder):
     list_files += create_data_path_list(ccs, scs, study_name)
     list_files += create_study_path_list(study_folder)
     list_files += create_source_path_list()
+    if zip_results_mode == "standard":
+        list_files += create_results_path_list(study_folder, exhaustive=False)
+    elif zip_results_mode == "exhaustive":
+        list_files += create_results_path_list(study_folder, exhaustive=True)
+    elif zip_results_mode == "None":
+        pass
+    else:
+        raise ValueError(f"zip_results_mode must be 'None', 'standard' or 'exhaustive'. Got: {zip_results_mode}")
     print(f"  -> found {len(list_files)} files overall.")
     
     add_files_to_zip_preserve_structure(list_files, zip_output_path, base_folder=base_folder)
@@ -183,10 +212,15 @@ if __name__ == "__main__":
     
     args:
     - study_path: path to the study-folder you want to archive (in FleetPy\studies\{study_name})
+    - zip_results_mode [optional]: "None" (default, no results files), "standard" (only standard_eval.csv and 00_config.json) or "exhaustive" (all files in results folder)
     """
     if len(sys.argv) == 2:
         study_folder = sys.argv[1]
         zip_study(study_folder)
+    elif len(sys.argv) == 3:
+        study_folder = sys.argv[1]
+        zip_results_mode = sys.argv[2]
+        zip_study(study_folder, zip_results_mode=zip_results_mode)
     else:
         if len(sys.argv) <= 1:
             raise IOError(f"Expected single path to study folder as input. Got none.")
