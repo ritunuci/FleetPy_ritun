@@ -2,12 +2,53 @@ import sys
 import os
 from pathlib import Path
 import zipfile
+import subprocess
+from datetime import datetime
 
 from src.misc.globals import *
 from src.FleetSimulationBase import build_operator_attribute_dicts
 from src.misc.config import ConstantConfig, ScenarioConfig
 
-       
+
+def get_git_info():
+    try:
+        # Branch
+        branch = subprocess.check_output(
+            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+            stderr=subprocess.DEVNULL
+        ).decode().strip()
+
+        # Full commit
+        commit = subprocess.check_output(
+            ["git", "rev-parse", "HEAD"],
+            stderr=subprocess.DEVNULL
+        ).decode().strip()
+
+        # Repository root path
+        repo_root = subprocess.check_output(
+            ["git", "rev-parse", "--show-toplevel"],
+            stderr=subprocess.DEVNULL
+        ).decode().strip()
+
+        # Repository name (folder name of root)
+        repo_name = Path(repo_root).name
+
+        # Remote URL (origin)
+        remote_url = subprocess.check_output(
+            ["git", "config", "--get", "remote.origin.url"],
+            stderr=subprocess.DEVNULL
+        ).decode().strip()
+
+        return {
+            "repo_name": repo_name,
+            "repo_root": repo_root,
+            "branch": branch,
+            "commit": commit,
+            "remote_url": remote_url,
+        }
+
+    except Exception:
+        return None    
 
 def read_all_scenario_configs(study_folder):
     scenario_folder = os.path.join(study_folder, "scenarios")
@@ -125,7 +166,10 @@ def create_data_path_list(constant_configs, scenario_configs, study_name):
 
 def create_study_path_list(study_folder):
     if not os.path.isfile(os.path.join(study_folder, "README.md")):
+        print("====================================================================================================================================================================")
+        print("WARNING!")
         print(f"Didnt find README.md for this study!\n Please create 'README.md' describing this study and put it to\n {os.path.join(study_folder, 'README.md')}")
+        print("====================================================================================================================================================================")
         #raise ValueError(f"Didnt find README.md for this study!\n Please create 'README.md' describing this study and put it to\n {os.path.join(study_folder, 'README.md')}")
     list_files = []
     for file_path in Path(study_folder).rglob('*'):
@@ -169,6 +213,19 @@ def add_files_to_zip_preserve_structure(file_paths, zip_output_path, base_folder
                 else:
                     arcname = file_path
                 zipf.write(file_path, arcname=arcname)
+                
+def create_git_info_file(study_folder):
+    git_info = get_git_info()
+    if git_info is None:
+        print("Warning: couldnt get git info. Skipping creation of git_info.txt")
+        return
+    git_info_path = os.path.join(study_folder, "git_info.txt")
+    current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    with open(git_info_path, "w") as f:
+        f.write(f"Git repository: {git_info.get('repo_name')}\n")
+        f.write(f"Git remote URL: {git_info.get('remote_url')}\n")
+        f.write(f"Git branch: {git_info.get('branch')}\nGit commit: {git_info.get('commit')}\nFile generated at: {current_time}")
+    return git_info_path
 
 def zip_study(study_folder, zip_results_mode="None"):
     """ 
@@ -197,9 +254,12 @@ def zip_study(study_folder, zip_results_mode="None"):
         pass
     else:
         raise ValueError(f"zip_results_mode must be 'None', 'standard' or 'exhaustive'. Got: {zip_results_mode}")
+    list_files.append(create_git_info_file(study_folder))
     print(f"  -> found {len(list_files)} files overall.")
     
     add_files_to_zip_preserve_structure(list_files, zip_output_path, base_folder=base_folder)
+    
+    print(f"Finished zipping study! Zip file created at: {zip_output_path}")
             
 if __name__ == "__main__":
     """ 
@@ -214,6 +274,7 @@ if __name__ == "__main__":
     - study_path: path to the study-folder you want to archive (in FleetPy\studies\{study_name})
     - zip_results_mode [optional]: "None" (default, no results files), "standard" (only standard_eval.csv and 00_config.json) or "exhaustive" (all files in results folder)
     """
+    print("Start zipping study ...")
     if len(sys.argv) == 2:
         study_folder = sys.argv[1]
         zip_study(study_folder)
