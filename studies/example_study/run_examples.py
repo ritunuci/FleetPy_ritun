@@ -21,7 +21,7 @@ if __name__ == "__main__":
     else:
         import time
 
-        scs_path = os.path.join(os.path.dirname(__file__), "studies", "example_study", "scenarios")
+        scs_path = os.path.join(os.path.dirname(__file__), "scenarios")
         # Base Examples IRS only
         # ----------------------
         # a) Pooling in ImmediateOfferEnvironment

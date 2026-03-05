@@ -36,7 +36,7 @@ conda env create -f environment.yml
 conda activate fleetpy
 
 # Run an example simulation
-python run_examples.py
+python studies/example_study/run_examples.py
 ```
 
 ✔ The results will be saved in `FleetPy/studies/example_study/results/`  
@@ -123,7 +123,7 @@ In general, you can **save your data and study definitions** in the mentioned di
 To test an example scenario:  
 
 ```bash
-python run_examples.py
+python studies/example_study/run_examples.py
 ```
 
 ✔ The output will be stored in:  
