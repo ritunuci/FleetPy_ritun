@@ -7,7 +7,7 @@ import traceback
 fleetpy_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.append(fleetpy_path)
 
-from run_examples import run_scenarios
+from studies.example_study.run_examples import run_scenarios
 import src.misc.config as config
 from src.misc.globals import *
 

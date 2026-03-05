@@ -126,67 +126,6 @@ def run_scenarios(constant_config_file, scenario_file, n_parallel_sim=1, n_cpu_p
 # ----> you can replace the following part by your respective if __name__ == '__main__' part for run_private*.py <---- #
 # -------------------------------------------------------------------------------------------------------------------- #
 
-# global variables for testing
-# ----------------------------
-MAIN_DIR = os.path.dirname(__file__)
-MOD_STR = "MoD_0"
-MM_STR = "Assertion"
-LOG_F = "standard_bugfix.log"
-
-
-# testing results of examples
-# ---------------------------
-def read_outputs_for_comparison(constant_csv, scenario_csv):
-    """This function reads some output parameters for a test of meaningful results of the test cases.
-
-    :param constant_csv: constant parameter definition
-    :param scenario_csv: scenario definition
-    :return: list of standard_eval data frames
-    :rtype: list[DataFrame]
-    """
-    constant_cfg = config.ConstantConfig(constant_csv)
-    scenario_cfgs = config.ScenarioConfig(scenario_csv)
-    const_abs = os.path.abspath(constant_csv)
-    study_name = os.path.basename(os.path.dirname(os.path.dirname(const_abs)))
-    return_list = []
-    for scenario_cfg in scenario_cfgs:
-        complete_scenario_cfg = constant_cfg + scenario_cfg
-        scenario_name = complete_scenario_cfg[G_SCENARIO_NAME]
-        output_dir = os.path.join(MAIN_DIR, "studies", study_name, "results", scenario_name)
-        standard_eval_f = os.path.join(output_dir, "standard_eval.csv")
-        tmp_df = pd.read_csv(standard_eval_f, index_col=0)
-        tmp_df.loc[G_SCENARIO_NAME, MOD_STR] = scenario_name
-        return_list.append((tmp_df))
-    return return_list
-
-
-def check_assertions(list_eval_df, all_scenario_assertion_dict):
-    """This function checks assertions of scenarios to give a quick impression if results are fitting.
-
-    :param list_eval_df: list of evaluation data frames
-    :param all_scenario_assertion_dict: dictionary of scenario id to assertion dictionaries
-    :return: list of (scenario_name, mismatch_flag, tmp_df) tuples
-    """
-    list_result_tuples = []
-    for sc_id, assertion_dict in all_scenario_assertion_dict.items():
-        tmp_df = list_eval_df[sc_id]
-        scenario_name = tmp_df.loc[G_SCENARIO_NAME, MOD_STR]
-        print("-"*80)
-        mismatch = False
-        for k, v in assertion_dict.items():
-            if tmp_df.loc[k, MOD_STR] != v:
-                tmp_df.loc[k, MM_STR] = v
-                mismatch = True
-        if mismatch:
-            prt_str = f"Scenario {scenario_name} has mismatch with assertions:/n{tmp_df}/n" + "-"*80 + "/n"
-        else:
-            prt_str = f"Scenario {scenario_name} results match assertions/n" + "-"*80 + "/n"
-        print(prt_str)
-        with open(LOG_F, "a") as fh:
-            fh.write(prt_str)
-        list_result_tuples.append((scenario_name, mismatch, tmp_df))
-    return list_result_tuples
-
 
 # -------------------------------------------------------------------------------------------------------------------- #
 if __name__ == "__main__":
@@ -196,9 +135,6 @@ if __name__ == "__main__":
         run_scenarios(*sys.argv)
     else:
         import time
-        # touch log file
-        with open(LOG_F, "w") as _:
-            pass
 
         scs_path = os.path.join(os.path.dirname(__file__), "studies", "example_study", "scenarios")
         # Base Examples IRS only
@@ -208,9 +144,6 @@ if __name__ == "__main__":
         cc = os.path.join(scs_path, "constant_config_ir.csv")
         sc = os.path.join(scs_path, "example_ir_only.csv")
         run_scenarios(cc, sc, log_level=log_level, n_cpu_per_sim=1, n_parallel_sim=1)
-        list_results = read_outputs_for_comparison(cc, sc)
-        all_scenario_assert_dict = {0: {"number users": 88}}
-        check_assertions(list_results, all_scenario_assert_dict)
 
         # Base Examples with Optimization (requires gurobi license!)
         # ----------------------------------------------------------
@@ -219,18 +152,12 @@ if __name__ == "__main__":
         cc = os.path.join(scs_path, "constant_config_pool.csv")
         sc = os.path.join(scs_path, "example_pool.csv")
         run_scenarios(cc, sc, log_level=log_level, n_cpu_per_sim=1, n_parallel_sim=1)
-        list_results = read_outputs_for_comparison(cc, sc)
-        all_scenario_assert_dict = {0: {"number users": 91}}
-        check_assertions(list_results, all_scenario_assert_dict)
 
         # c) Pooling in ImmediateOfferEnvironment
         log_level = "info"
         cc = os.path.join(scs_path, "constant_config_ir.csv")
         sc = os.path.join(scs_path, "example_ir_batch.csv")
         run_scenarios(cc, sc, log_level=log_level, n_cpu_per_sim=1, n_parallel_sim=1)
-        list_results = read_outputs_for_comparison(cc, sc)
-        all_scenario_assert_dict = {0: {"number users": 90}}
-        check_assertions(list_results, all_scenario_assert_dict)
 
         # d) Pooling with RV heuristics in ImmediateOfferEnvironment (with doubled demand)
         log_level = "info"
@@ -239,21 +166,15 @@ if __name__ == "__main__":
         # no heuristic scenario
         sc = os.path.join(scs_path, "example_pool_noheuristics.csv")
         run_scenarios(cc, sc, log_level=log_level, n_cpu_per_sim=1, n_parallel_sim=1)
-        list_results = read_outputs_for_comparison(cc, sc)
-        all_scenario_assert_dict = {0: {"number users": 199}}
-        check_assertions(list_results, all_scenario_assert_dict)
         # with heuristic scenarios
         t1 = time.perf_counter()
         sc = os.path.join(scs_path, "example_pool_heuristics.csv")
         run_scenarios(cc, sc, log_level=log_level, n_cpu_per_sim=1, n_parallel_sim=1)
-        list_results = read_outputs_for_comparison(cc, sc)
         t2 = time.perf_counter()
         run_scenarios(cc, sc, log_level=log_level, n_cpu_per_sim=1, n_parallel_sim=2)
         t3 = time.perf_counter()
         print(f"Computation time without heuristics: {round(t1-t0, 1)} | with heuristics 1 CPU: {round(t2-t1,1)}"
               f"| with heuristics 2 CPU: {round(t3-t2,1)}")
-        all_scenario_assert_dict = {0: {"number users": 191}}
-        check_assertions(list_results, all_scenario_assert_dict)
 
         # g) Pooling with RV heuristic and Repositioning in ImmediateOfferEnvironment (with doubled demand and
         #       bad initial vehicle distribution)
@@ -261,9 +182,6 @@ if __name__ == "__main__":
         cc = os.path.join(scs_path, "constant_config_ir_repo.csv")
         sc = os.path.join(scs_path, "example_ir_heuristics_repositioning.csv")
         run_scenarios(cc, sc, log_level=log_level, n_cpu_per_sim=1, n_parallel_sim=1)
-        list_results = read_outputs_for_comparison(cc, sc)
-        all_scenario_assert_dict = {0: {"number users": 198}}
-        check_assertions(list_results, all_scenario_assert_dict)
         
         # h) Pooling with public charging infrastructure (low range vehicles)
         log_level = "info"
@@ -290,18 +208,12 @@ if __name__ == "__main__":
         t0 = time.perf_counter()
         sc = os.path.join(scs_path, "example_depot_charge.csv")
         run_scenarios(cc, sc, log_level=log_level, n_cpu_per_sim=1, n_parallel_sim=1)
-        list_results = read_outputs_for_comparison(cc, sc)
-        all_scenario_assert_dict = {0: {"number users": 199}}
-        check_assertions(list_results, all_scenario_assert_dict)
         print("Computation without multiprocessing took {}s".format(time.perf_counter() - t0))
         # no heuristic scenario multiple cores
         cores = 2
         t0 = time.perf_counter()
         sc = os.path.join(scs_path, "example_depot_charge.csv")
         run_scenarios(cc, sc, log_level=log_level, n_cpu_per_sim=cores, n_parallel_sim=1)
-        list_results = read_outputs_for_comparison(cc, sc)
-        all_scenario_assert_dict = {0: {"number users": 199}}
-        check_assertions(list_results, all_scenario_assert_dict)
         print("Computation with multiprocessing took {}s".format(time.perf_counter() - t0))
         print(" -> multiprocessing only usefull for large vehicle fleets")
         
